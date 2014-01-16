@@ -388,15 +388,60 @@
           cwidth,
           dx,
           startT,
+          onTouchStart,
+          onTouchMove,
+          onTouchEnd,
           scrolling = false,
           localX = 0,
           localY = 0,
           accDx = 0;
 
         if(!msGesture){
-            el.addEventListener('touchstart', onTouchStart, false);
+            onTouchMove = function(e) {
+              // Local vars for X and Y points.
 
-            function onTouchStart(e) {
+              localX = e.touches[0].pageX;
+              localY = e.touches[0].pageY;
+
+              dx = (vertical) ? startX - localY : startX - localX;
+              scrolling = (vertical) ? (Math.abs(dx) < Math.abs(localX - startY)) : (Math.abs(dx) < Math.abs(localY - startY));
+
+              var fxms = 500;
+
+              if ( ! scrolling || Number( new Date() ) - startT > fxms ) {
+                e.preventDefault();
+                if (!fade && slider.transitions) {
+                  if (!slider.vars.animationLoop) {
+                    dx = dx/((slider.currentSlide === 0 && dx < 0 || slider.currentSlide === slider.last && dx > 0) ? (Math.abs(dx)/cwidth+2) : 1);
+                  }
+                  slider.setProps(offset + dx, "setTouch");
+                }
+              }
+            };
+
+            onTouchEnd = function(e) {
+              // finish the touch by undoing the touch session
+              el.removeEventListener('touchmove', onTouchMove, false);
+
+              if (slider.animatingTo === slider.currentSlide && !scrolling && !(dx === null)) {
+                var updateDx = (reverse) ? -dx : dx,
+                    target = (updateDx > 0) ? slider.getTarget('next') : slider.getTarget('prev');
+
+                if (slider.canAdvance(target) && (Number(new Date()) - startT < 550 && Math.abs(updateDx) > 50 || Math.abs(updateDx) > cwidth/2)) {
+                  slider.flexAnimate(target, slider.vars.pauseOnAction);
+                } else {
+                  if (!fade) slider.flexAnimate(slider.currentSlide, slider.vars.pauseOnAction, true);
+                }
+              }
+              el.removeEventListener('touchend', onTouchEnd, false);
+
+              startX = null;
+              startY = null;
+              dx = null;
+              offset = null;
+            };
+
+            onTouchStart = function(e) {
               if (slider.animating) {
                 e.preventDefault();
               } else if ( ( window.navigator.msPointerEnabled ) || e.touches.length === 1 ) {
@@ -421,51 +466,9 @@
                 el.addEventListener('touchmove', onTouchMove, false);
                 el.addEventListener('touchend', onTouchEnd, false);
               }
-            }
+            };
 
-            function onTouchMove(e) {
-              // Local vars for X and Y points.
-
-              localX = e.touches[0].pageX;
-              localY = e.touches[0].pageY;
-
-              dx = (vertical) ? startX - localY : startX - localX;
-              scrolling = (vertical) ? (Math.abs(dx) < Math.abs(localX - startY)) : (Math.abs(dx) < Math.abs(localY - startY));
-
-              var fxms = 500;
-
-              if ( ! scrolling || Number( new Date() ) - startT > fxms ) {
-                e.preventDefault();
-                if (!fade && slider.transitions) {
-                  if (!slider.vars.animationLoop) {
-                    dx = dx/((slider.currentSlide === 0 && dx < 0 || slider.currentSlide === slider.last && dx > 0) ? (Math.abs(dx)/cwidth+2) : 1);
-                  }
-                  slider.setProps(offset + dx, "setTouch");
-                }
-              }
-            }
-
-            function onTouchEnd(e) {
-              // finish the touch by undoing the touch session
-              el.removeEventListener('touchmove', onTouchMove, false);
-
-              if (slider.animatingTo === slider.currentSlide && !scrolling && !(dx === null)) {
-                var updateDx = (reverse) ? -dx : dx,
-                    target = (updateDx > 0) ? slider.getTarget('next') : slider.getTarget('prev');
-
-                if (slider.canAdvance(target) && (Number(new Date()) - startT < 550 && Math.abs(updateDx) > 50 || Math.abs(updateDx) > cwidth/2)) {
-                  slider.flexAnimate(target, slider.vars.pauseOnAction);
-                } else {
-                  if (!fade) slider.flexAnimate(slider.currentSlide, slider.vars.pauseOnAction, true);
-                }
-              }
-              el.removeEventListener('touchend', onTouchEnd, false);
-
-              startX = null;
-              startY = null;
-              dx = null;
-              offset = null;
-            }
+            el.addEventListener('touchstart', onTouchStart, false);
         }else{
             el.style.msTouchAction = "none";
             el._gesture = new MSGesture();
